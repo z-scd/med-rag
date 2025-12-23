@@ -13,7 +13,12 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+try:
+    load_dotenv()
+except UnicodeDecodeError:
+    # Handle case where .env file has wrong encoding
+    print("⚠️  Warning: .env file has encoding issues. Please recreate it with UTF-8 encoding.")
+    print("   The file should contain: OPENROUTER_API_KEY=your_key_here")
 
 from services.document_processor import DocumentProcessor
 from services.vector_store import VectorStore
