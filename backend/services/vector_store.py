@@ -35,12 +35,13 @@ class VectorStore:
         self.index_path = "data/faiss_index/index.faiss"
         self.metadata_path = "data/faiss_index/metadata.pkl"
 
-    def add_documents(self, chunks: List[Dict]) -> None:
+    def add_documents(self, chunks: List[Dict], silent: bool = False) -> None:
         """
         Add document chunks to the vector store
 
         Args:
             chunks: List of dictionaries with 'content' and 'metadata'
+            silent: If True, suppress progress output
         """
         if not chunks:
             return
@@ -51,7 +52,7 @@ class VectorStore:
         # Generate embeddings
         embeddings = self.embedding_model.encode(
             texts,
-            show_progress_bar=True,
+            show_progress_bar=not silent,
             convert_to_numpy=True
         )
 
@@ -64,7 +65,8 @@ class VectorStore:
         # Save to disk
         self.save_index()
 
-        print(f"✅ Added {len(chunks)} chunks to vector store")
+        if not silent:
+            print(f"✅ Added {len(chunks)} chunks to vector store")
 
     def search(self, query: str, top_k: int = 5) -> List[Dict]:
         """
@@ -130,7 +132,8 @@ class VectorStore:
                 with open(self.metadata_path, 'rb') as f:
                     self.documents = pickle.load(f)
 
-                print(f"📂 Loaded index with {self.index.ntotal} vectors")
+                print(
+                    f"📂 Loaded index with {self.index.ntotal} vectors and {len(self.documents)} document chunks")
             else:
                 print("ℹ️ No existing index found, starting fresh")
         except Exception as e:

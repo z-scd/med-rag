@@ -49,7 +49,62 @@ os.makedirs("data/faiss_index", exist_ok=True)
 async def startup_event():
     """Initialize services on startup"""
     vector_store.load_index()
+
+    # Check if we have documents but no index, then rebuild
+    docs_dir = "data/documents"
+    if os.path.exists(docs_dir) and os.listdir(docs_dir):
+        if vector_store.index.ntotal == 0:
+            print("📚 Found documents but no index. Rebuilding index...")
+            await rebuild_index_on_startup()
+        else:
+            print(
+                f"📚 Loaded {vector_store.index.ntotal} embeddings from existing index")
+
     print("✅ Application started successfully")
+
+
+async def rebuild_index_on_startup():
+    """Rebuild index from all documents on startup"""
+    try:
+        docs_dir = "data/documents"
+        files = [f for f in os.listdir(
+            docs_dir) if os.path.isfile(os.path.join(docs_dir, f))]
+
+        if not files:
+            return
+
+        total_chunks = 0
+        successful_docs = 0
+        failed_docs = []
+
+        for filename in files:
+            try:
+                file_path = os.path.join(docs_dir, filename)
+                chunks = document_processor.process_document(
+                    file_path, filename)
+
+                if chunks:
+                    vector_store.add_documents(chunks)
+                    total_chunks += len(chunks)
+                    successful_docs += 1
+                    print(f"  ✓ Processed: {filename} ({len(chunks)} chunks)")
+                else:
+                    failed_docs.append(f"{filename} (no content extracted)")
+
+            except Exception as e:
+                failed_docs.append(f"{filename} ({str(e)})")
+                print(f"  ✗ Failed to process {filename}: {str(e)}")
+
+        print(
+            f"✅ Index rebuilt: {successful_docs} documents, {total_chunks} total chunks")
+
+        if failed_docs:
+            print(f"⚠️ Failed to process {len(failed_docs)} documents:")
+            for failed in failed_docs:
+                print(f"  - {failed}")
+
+    except Exception as e:
+        print(f"⚠️ Error during startup index rebuild: {str(e)}")
 
 
 @app.get("/", response_model=HealthResponse)
